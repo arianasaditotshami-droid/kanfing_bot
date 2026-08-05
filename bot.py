@@ -63,7 +63,11 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text in configs:
 
         await update.message.reply_text(
-            "✅ انتخاب شما:\n\n" + configs[text],
+            "✅ انتخاب شما:\n\n"
+            + configs[text]
+            + "\n\n💳 6104-3373-0010-1910:\n"
+            + CARD_NUMBER
+            + "\n\nبعد از پرداخت عکس رسید را ارسال کنید.",
             reply_markup=ReplyKeyboardMarkup(
                 [["🔙 برگشت"]],
                 resize_keyboard=True
@@ -71,7 +75,7 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-    elif text == "💳 شارژحساب شارژحساب":
+    elif text == "💳 شارژ حساب":
 
         await update.message.reply_text(
             f"💳 6104-3373-0010-1910:\n\n{CARD_NUMBER}",
@@ -89,8 +93,7 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         link = f"https://t.me/{bot.username}?start={user_id}"
 
         await update.message.reply_text(
-            "👥 لینک دعوت شما:\n\n"
-            f"{link}"
+            f"👥 لینک دعوت شما:\n\n{link}"
         )
 
 
