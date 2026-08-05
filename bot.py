@@ -32,31 +32,40 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if text == "🛒 خرید کانفینگ":
         await update.message.reply_text(
-            "📦 پکیج‌ها:\n\n"
-            "1- 10 گیگ\n"
-            "2- 50 گیگ\n"
-            "3- 100 گیگ"
+            "⭐️ لیست قیمت کانفینگ Plus ⭐️\n\n"
+            "10 گیگ + 1 ماه = 150 تومان ❗️\n\n"
+            "15 گیگ + 1 ماه = 225 تومان ❗️\n\n"
+            "20 گیگ + 1 ماه = 300 تومان ❗️\n\n"
+            "30 گیگ + 1 ماه = 375 تومان ❗️\n\n"
+            "40 گیگ + 2 ماه = 465 تومان ❗️\n\n"
+            "50 گیگ + 2 ماه = 555 تومان ❗️\n\n"
+            "100 گیگ + 4 ماه = 700 تومان ❗️"
         )
+
 
     elif text == "📦 کانفینگ‌های خریداری‌شده":
         await update.message.reply_text(
             "هنوز خریدی ثبت نشده است."
         )
 
+
     elif text == "💳 شارژ حساب":
         await update.message.reply_text(
             "برای شارژ حساب رسید پرداخت را ارسال کنید."
         )
+
 
     elif text == "🎁 وارد کردن کد هدیه":
         await update.message.reply_text(
             "کد هدیه خود را ارسال کنید."
         )
 
+
     elif text == "👥 زیرمجموعه‌گیری":
         await update.message.reply_text(
             "لینک اختصاصی شما ساخته می‌شود."
         )
+
 
     elif text == "🛟 پشتیبانی":
         await update.message.reply_text(
