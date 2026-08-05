@@ -65,7 +65,7 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "✅ انتخاب شما:\n\n"
             + configs[text]
-            + "\n\n💳 6104-3373-0010-1910:\n"
+            + "\n\n💳 بعد از پرداخل لطفا رسید را ارسال کنید:\n"
             + CARD_NUMBER
             + "\n\nبعد از پرداخت عکس رسید را ارسال کنید.",
             reply_markup=ReplyKeyboardMarkup(
@@ -78,7 +78,7 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "💳 شارژ حساب":
 
         await update.message.reply_text(
-            f"💳 بعد از پرداخت رسید را ارسال کنید:\n\n{CARD_NUMBER}",
+            f"💳 6104-3373-0010-1910:\n\n{CARD_NUMBER}",
             reply_markup=ReplyKeyboardMarkup(
                 [["🔙 برگشت"]],
                 resize_keyboard=True
