@@ -4,6 +4,7 @@ db = sqlite3.connect("bot.db")
 cursor = db.cursor()
 
 
+# کاربران
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users(
 id INTEGER PRIMARY KEY,
@@ -14,6 +15,7 @@ points INTEGER DEFAULT 0
 """)
 
 
+# سفارش‌ها
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS orders(
 id INTEGER PRIMARY KEY,
@@ -25,6 +27,7 @@ receipt TEXT
 """)
 
 
+# ادمین‌ها
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS admins(
 id INTEGER PRIMARY KEY
@@ -32,11 +35,23 @@ id INTEGER PRIMARY KEY
 """)
 
 
+# کدهای هدیه
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS gifts(
-code TEXT PRIMARY KEY,
+id INTEGER PRIMARY KEY,
+code TEXT UNIQUE,
 points INTEGER,
-uses INTEGER DEFAULT 0
+used INTEGER DEFAULT 0
+)
+""")
+
+
+# استفاده کاربران از هدیه
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS used_gifts(
+id INTEGER PRIMARY KEY,
+user_id INTEGER,
+gift_code TEXT
 )
 """)
 
@@ -45,18 +60,12 @@ db.commit()
 
 
 
-def add_user(user_id, username, referrer=0):
+def add_points(user_id, amount):
 
     cursor.execute(
-        "INSERT OR IGNORE INTO users(id,username,referrer,points) VALUES (?,?,?,?)",
-        (user_id, username, referrer, 0)
+        "UPDATE users SET points = points + ? WHERE id=?",
+        (amount, user_id)
     )
-
-    if referrer and referrer != user_id:
-        cursor.execute(
-            "UPDATE users SET points = points + 3 WHERE id=?",
-            (referrer,)
-        )
 
     db.commit()
 
@@ -78,49 +87,6 @@ def get_points(user_id):
 
 
 
-def add_admin(user_id):
-
-    cursor.execute(
-        "INSERT OR IGNORE INTO admins(id) VALUES(?)",
-        (user_id,)
-    )
-
-    db.commit()
-
-
-
-def is_admin(user_id):
-
-    cursor.execute(
-        "SELECT id FROM admins WHERE id=?",
-        (user_id,)
-    )
-
-    return cursor.fetchone() is not None
-
-
-
-def save_order(user_id, config):
-
-    cursor.execute(
-        "INSERT INTO orders(user_id,config,status,receipt) VALUES (?,?,?,?)",
-        (user_id, config, "در انتظار پرداخت", "")
-    )
-
-    db.commit()
-
-
-
-def get_orders():
-
-    cursor.execute(
-        "SELECT * FROM orders"
-    )
-
-    return cursor.fetchall()
-
-
-
 def create_gift(code, points):
 
     cursor.execute(
@@ -129,3 +95,41 @@ def create_gift(code, points):
     )
 
     db.commit()
+
+
+
+def use_gift(user_id, code):
+
+    cursor.execute(
+        "SELECT points FROM gifts WHERE code=?",
+        (code,)
+    )
+
+    gift = cursor.fetchone()
+
+    if not gift:
+        return False
+
+
+    cursor.execute(
+        "SELECT id FROM used_gifts WHERE user_id=? AND gift_code=?",
+        (user_id, code)
+    )
+
+    used = cursor.fetchone()
+
+    if used:
+        return False
+
+
+    add_points(user_id, gift[0])
+
+
+    cursor.execute(
+        "INSERT INTO used_gifts(user_id,gift_code) VALUES(?,?)",
+        (user_id, code)
+    )
+
+    db.commit()
+
+    return True
