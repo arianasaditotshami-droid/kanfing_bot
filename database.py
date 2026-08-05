@@ -28,6 +28,7 @@ receipt TEXT
 db.commit()
 
 
+
 def add_user(user_id, username, referrer=0):
 
     cursor.execute(
@@ -35,9 +36,10 @@ def add_user(user_id, username, referrer=0):
         (user_id, username, referrer, 0)
     )
 
-    if referrer:
+    if referrer and referrer != user_id:
+
         cursor.execute(
-            "UPDATE users SET points = points + 10 WHERE id=?",
+            "UPDATE users SET points = points + 3 WHERE id=?",
             (referrer,)
         )
 
