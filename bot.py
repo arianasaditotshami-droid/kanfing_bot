@@ -3,7 +3,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 
 
 TOKEN = "8932008249:AAH8qwRLOYUtsbO_mFJ31MMUnJbjoLWsIr4"
-CARD_NUMBER = "6104-3373-0010-1910"
+CARD_NUMBER = "6104337300101910"
 
 ADMIN_ID = 8635403087
 
@@ -12,7 +12,6 @@ menu = [
     ["🛒 خرید کانفینگ"],
     ["📦 کانفینگ‌های خریداری‌شده"],
     ["💳 شارژ حساب"],
-    ["👥 زیرمجموعه‌گیری"],
     ["⭐ امتیازهای من"],
     ["🎁 کد هدیه"],
     ["🛟 پشتیبانی"]
@@ -22,6 +21,7 @@ menu = [
 admin_menu = [
     ["📊 سفارش‌ها"],
     ["👥 کاربران"],
+    ["➕ افزودن امتیاز"],
     ["🎁 ساخت کد هدیه"],
     ["🔙 برگشت"]
 ]
@@ -38,10 +38,18 @@ configs = {
 }
 
 
+# ذخیره امتیاز کاربران (فعلاً موقت)
+points = {}
+
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
+
+    if user_id not in points:
+        points[user_id] = 0
+
 
     if user_id == ADMIN_ID:
 
@@ -68,6 +76,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
+    user_id = update.effective_user.id
+
 
 
     if text == "🛒 خرید کانفینگ":
@@ -87,40 +97,58 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif text in configs:
 
-        await update.message.reply_text(
-            configs[text] +
-            "\n\n💳 کاربر گرامی بعد از پرداخت و ارسال رسید لطفا منتظر بمانید تا توسط پشتیبانی تایید شود:\n" +
-            CARD_NUMBER
-        )
-
-
-    elif text == "💳 شارژ حساب":
-
-        await update.message.reply_text(
-            "💳 شماره کارت:\n\n" +
-            CARD_NUMBER
-        )
-
-
-    elif text == "📦 کانفینگ‌های خریداری‌شده":
-
-        await update.message.reply_text(
-            "هنوز خریدی ثبت نشده."
-        )
-
-
-    elif text == "👥 زیرمجموعه‌گیری":
-
-        await update.message.reply_text(
-            "بخش زیرمجموعه‌گیری فعال است."
-        )
-
+        await update.message
 
     elif text == "⭐ امتیازهای من":
 
+        user_points = points.get(user_id, 0)
+
         await update.message.reply_text(
-            "⭐ امتیاز شما: 0"
+            "⭐ امتیازهای شما\n\n"
+            f"⭐ امتیاز فعلی: {user_points}\n\n"
+            "🎁 امتیازها برای دریافت هدیه استفاده می‌شوند."
         )
+
+
+    elif text == "➕ افزودن امتیاز":
+
+        if user_id == ADMIN_ID:
+
+            await update.message.reply_text(
+                "👤 آیدی کاربر و مقدار امتیاز را اینطوری بفرست:\n\n"
+                "مثال:\n"
+                "123456789 50"
+            )
+
+            context.user_data["add_point"] = True
+
+
+    elif context.user_data.get("add_point"):
+
+        if user_id == ADMIN_ID:
+
+            try:
+
+                data = text.split()
+
+                target_id = int(data[0])
+                amount = int(data[1])
+
+                points[target_id] = points.get(target_id, 0) + amount
+
+                await update.message.reply_text(
+                    "✅ امتیاز با موفقیت اضافه شد."
+                )
+
+                context.user_data["add_point"] = False
+
+
+            except:
+
+                await update.message.reply_text(
+                    "❌ فرمت اشتباه است."
+                )
+
 
 
     elif text == "🎁 کد هدیه":
@@ -130,6 +158,7 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+
     elif text == "🛟 پشتیبانی":
 
         await update.message.reply_text(
@@ -137,15 +166,28 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+
     elif text == "🔙 برگشت":
 
-        await update.message.reply_text(
-            "منوی اصلی 👇",
-            reply_markup=ReplyKeyboardMarkup(
-                menu,
-                resize_keyboard=True
+        if user_id == ADMIN_ID:
+
+            await update.message.reply_text(
+                "👑 پنل مدیریت",
+                reply_markup=ReplyKeyboardMarkup(
+                    admin_menu,
+                    resize_keyboard=True
+                )
             )
-        )
+
+        else:
+
+            await update.message.reply_text(
+                "منوی اصلی 👇",
+                reply_markup=ReplyKeyboardMarkup(
+                    menu,
+                    resize_keyboard=True
+                )
+            )
 
 
 
