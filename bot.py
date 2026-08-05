@@ -30,6 +30,7 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
 
+
     if text == "🛒 خرید کانفینگ":
         await update.message.reply_text(
             "⭐️ لیست قیمت کانفینگ Plus ⭐️\n\n"
@@ -43,27 +44,35 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+    elif text == "💳 شارژ حساب":
+        await update.message.reply_text(
+            "💳 6104-3373-0010-1910:\n\n"
+            f"{CARD_NUMBER}\n\n"
+            "بعد از پرداخت رسید را ارسال کنید ✅"
+        )
+
+
+    elif text == "👥 زیرمجموعه‌گیری":
+        bot_username = (await context.bot.get_me()).username
+
+        link = f"https://t.me/{bot_username}?start={update.effective_user.id}"
+
+        await update.message.reply_text(
+            "👥 لینک رفرال شما:\n\n"
+            f"{link}\n\n"
+            "این لینک را برای دوستان خود بفرستید ✅"
+        )
+
+
     elif text == "📦 کانفینگ‌های خریداری‌شده":
         await update.message.reply_text(
             "هنوز خریدی ثبت نشده است."
         )
 
 
-    elif text == "💳 شارژ حساب":
-        await update.message.reply_text(
-            "برای شارژ حساب رسید پرداخت را ارسال کنید."
-        )
-
-
     elif text == "🎁 وارد کردن کد هدیه":
         await update.message.reply_text(
             "کد هدیه خود را ارسال کنید."
-        )
-
-
-    elif text == "👥 زیرمجموعه‌گیری":
-        await update.message.reply_text(
-            "لینک اختصاصی شما ساخته می‌شود."
         )
 
 
