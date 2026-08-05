@@ -47,6 +47,7 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == "🛒 خرید کانفینگ":
 
         buttons = [[x] for x in configs.keys()]
+        buttons.append(["🔙 برگشت"])
 
         await update.message.reply_text(
             "📦 حجم مورد نظر را انتخاب کنید:",
@@ -56,11 +57,27 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif text in configs:
 
+        save_order(user_id, configs[text])
+
         await update.message.reply_text(
-            f"✅ انتخاب شما:\n\n"
+            f"✅ سفارش شما ثبت شد:\n\n"
             f"{configs[text]}\n\n"
-            "💳6104-3373-0010-1910 لطفاً مبلغ را پرداخت کنید و عکس رسید را ارسال کنید."
-        )
+            "💳 6104-3373-0010-1910 پرداخت کنید و عکس رسید را ارسال کنید."
+        )    elif text == "📦 کانفینگ‌های خریداری‌شده":
+
+        orders = get_user_orders(user_id)
+
+        if not orders:
+            await update.message.reply_text(
+                "هنوز سفارشی ندارید."
+            )
+        else:
+            msg = "📦 سفارش‌های شما:\n\n"
+
+            for order in orders:
+                msg += f"🔹 {order[0]}\nوضعیت: {order[1]}\n\n"
+
+            await update.message.reply_text(msg)
 
 
     elif text == "💳 شارژ حساب":
@@ -69,13 +86,6 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💳 6104-3373-0010-1910:\n\n"
             f"{CARD_NUMBER}\n\n"
             "بعد از پرداخت رسید را ارسال کنید ✅"
-        )
-
-
-    elif text == "📦 کانفینگ‌های خریداری‌شده":
-
-        await update.message.reply_text(
-            "هنوز خریدی ثبت نشده است."
         )
 
 
@@ -109,6 +119,79 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(
             "برای پشتیبانی پیام ارسال کنید."
+        )
+
+
+    elif text == "🔙 برگشت":
+
+        await update.message.reply_text(
+            "به منوی اصلی برگشتید 👇",
+            reply_markup=ReplyKeyboardMarkup(menu, resize_keyboard=True)
+        )
+
+
+app = Application.builder().token(TOKEN).build()
+
+app.add_handler(CommandHandler("start", start))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
+
+
+if __name__ == "__main__":
+    app.run_polling()
+
+            for order in orders:
+                msg += f"🔹 {order[0]}\nوضعیت: {order[1]}\n\n"
+
+            await update.message.reply_text(msg)
+
+
+    elif text == "💳 شارژ حساب":
+
+        await update.message.reply_text(
+            شماره کارت برای پرداخت:\n\n"
+            f"{CARD_NUMBER}\n\n"
+            "بعد از پرداخت رسید را ارسال کنید ✅"
+        )
+
+
+    elif text == "👥 زیرمجموعه‌گیری":
+
+        bot_username = (await context.bot.get_me()).username
+
+        link = f"https://t.me/{bot_username}?start={user_id}"
+
+        await update.message.reply_text(
+            "👥 لینک رفرال شما:\n\n"
+            f"{link}"
+        )
+
+
+    elif text == "⭐ امتیازهای من":
+
+        await update.message.reply_text(
+            "⭐ امتیاز شما: 0"
+        )
+
+
+    elif text == "🎁 وارد کردن کد هدیه":
+
+        await update.message.reply_text(
+            "کد هدیه خود را ارسال کنید."
+        )
+
+
+    elif text == "🛟 پشتیبانی":
+
+        await update.message.reply_text(
+            "برای پشتیبانی پیام ارسال کنید."
+        )
+
+
+    elif text == "🔙 برگشت":
+
+        await update.message.reply_text(
+            "به منوی اصلی برگشتید 👇",
+            reply_markup=ReplyKeyboardMarkup(menu, resize_keyboard=True)
         )
 
 
