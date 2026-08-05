@@ -6,12 +6,12 @@ from database import *
 
 
 menu = [
-["🛒 خرید کانفینگ"],
-["📦 کانفینگ‌های خریداری‌شده"],
-["💳 شارژ حساب"],
-["🎁 وارد کردن کد هدیه"],
-["👥 زیرمجموعه‌گیری"],
-["🛟 پشتیبانی"]
+    ["🛒 خرید کانفینگ"],
+    ["📦 کانفینگ‌های خریداری‌شده"],
+    ["💳 شارژ حساب"],
+    ["🎁 وارد کردن کد هدیه"],
+    ["👥 زیرمجموعه‌گیری"],
+    ["🛟 پشتیبانی"]
 ]
 
 
@@ -38,10 +38,37 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "3- 100 گیگ"
         )
 
+    elif text == "📦 کانفینگ‌های خریداری‌شده":
+        await update.message.reply_text(
+            "هنوز خریدی ثبت نشده است."
+        )
+
+    elif text == "💳 شارژ حساب":
+        await update.message.reply_text(
+            "برای شارژ حساب رسید پرداخت را ارسال کنید."
+        )
+
+    elif text == "🎁 وارد کردن کد هدیه":
+        await update.message.reply_text(
+            "کد هدیه خود را ارسال کنید."
+        )
+
+    elif text == "👥 زیرمجموعه‌گیری":
+        await update.message.reply_text(
+            "لینک اختصاصی شما ساخته می‌شود."
+        )
+
+    elif text == "🛟 پشتیبانی":
+        await update.message.reply_text(
+            "برای پشتیبانی پیام ارسال کنید."
+        )
+
 
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT, message))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
 
-app.run_polling()
+
+if __name__ == "__main__":
+    app.run_polling()
