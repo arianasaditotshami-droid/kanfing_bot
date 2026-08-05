@@ -1,8 +1,13 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
+from database import get_orders
+
 
 TOKEN = "8932008249:AAH8qwRLOYUtsbO_mFJ31MMUnJbjoLWsIr4"
+
+ADMIN_ID = 8635403087
+
 CARD_NUMBER = "6104-3373-0010-1910"
 
 
@@ -13,6 +18,14 @@ menu = [
     ["👥 زیرمجموعه‌گیری"],
     ["⭐ امتیازهای من"],
     ["🛟 پشتیبانی"]
+]
+
+
+admin_menu = [
+    ["📊 سفارش‌ها"],
+    ["👥 کاربران"],
+    ["🎁 کد هدیه"],
+    ["🔙 برگشت"]
 ]
 
 
@@ -29,16 +42,18 @@ configs = {
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    user_id = update.effective_user.id
+    buttons = menu.copy()
+
+    if update.effective_user.id == ADMIN_ID:
+        buttons.append(["👑 پنل مدیریت"])
 
     await update.message.reply_text(
-        f"خوش آمدید 👋\n\nشناسه شما: {user_id}",
+        "خوش آمدید 👋",
         reply_markup=ReplyKeyboardMarkup(
-            menu,
+            buttons,
             resize_keyboard=True
         )
     )
-
 
 async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -65,9 +80,9 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "✅ انتخاب شما:\n\n"
             + configs[text]
-            + "\n\n💳 بعد از پرداخت لطفا رسید را ارسال کنید:\n"
+            + "\n\n💳 بعد از پرداخت منتظر تایید پشتیبانی بمانید:\n"
             + CARD_NUMBER
-            + "\n\nبعد از پرداخت لطفا منتظر تایید پشتیبانی باشید حداقل2ساعت حداکثر1روز.",
+            + "\n\nبعد از پرداخت رسید را ارسال کنید.",
             reply_markup=ReplyKeyboardMarkup(
                 [["🔙 برگشت"]],
                 resize_keyboard=True
@@ -104,6 +119,44 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+    elif text == "👑 پنل مدیریت" and user_id == ADMIN_ID:
+
+        await update.message.reply_text(
+            "👑 پنل مدیریت",
+            reply_markup=ReplyKeyboardMarkup(
+                admin_menu,
+                resize_keyboard=True
+            )
+        )
+
+    elif text == "📊 سفارش‌ها" and user_id == ADMIN_ID:
+
+        orders = get_orders()
+
+        if orders:
+            await update.message.reply_text(
+                f"📦 سفارش‌ها:\n\n{orders}"
+            )
+        else:
+            await update.message.reply_text(
+                "❌ سفارشی وجود ندارد."
+            )
+
+
+    elif text == "👥 کاربران" and user_id == ADMIN_ID:
+
+        await update.message.reply_text(
+            "👥 بخش کاربران در مرحله بعد اضافه می‌شود."
+        )
+
+
+    elif text == "🎁 کد هدیه" and user_id == ADMIN_ID:
+
+        await update.message.reply_text(
+            "🎁 ساخت کد هدیه در مرحله بعد اضافه می‌شود."
+        )
+
+
     elif text == "📦 کانفینگ‌های خریداری‌شده":
 
         await update.message.reply_text(
@@ -120,18 +173,24 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif text == "🔙 برگشت":
 
-        await update.message.reply_text(
-            "منوی اصلی 👇",
-            reply_markup=ReplyKeyboardMarkup(
-                menu,
-                resize_keyboard=True
-            )
-        )
+        await start(update, context)
+
 
 
 app = Application.builder().token(TOKEN).build()
 
-app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
+
+app.add_handler(
+    CommandHandler("start", start)
+)
+
+
+app.add_handler(
+    MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        message
+    )
+)
+
 
 app.run_polling()
