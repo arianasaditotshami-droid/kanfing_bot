@@ -1,4 +1,10 @@
-from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import (
+    Update,
+    ReplyKeyboardMarkup,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup
+)
+
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -9,6 +15,8 @@ from telegram.ext import (
 )
 
 import sqlite3
+import random
+import string
 
 
 TOKEN = "8932008249:AAH8qwRLOYUtsbO_mFJ31MMUnJbjoLWsIr4"
@@ -18,9 +26,6 @@ ADMIN_ID = 8635403087
 CARD_NUMBER = "6104-3373-0010-1910"
 
 
-
-# دیتابیس
-
 db = sqlite3.connect("bot.db", check_same_thread=False)
 cursor = db.cursor()
 
@@ -29,7 +34,17 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS users(
 id INTEGER PRIMARY KEY,
 username TEXT,
-points INTEGER DEFAULT 0
+points INTEGER DEFAULT 0,
+referrer INTEGER DEFAULT 0
+)
+""")
+
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS gifts(
+code TEXT PRIMARY KEY,
+points INTEGER,
+used TEXT
 )
 """)
 
@@ -45,50 +60,104 @@ receipt TEXT
 """)
 
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS gifts(
-code TEXT PRIMARY KEY,
-points INTEGER,
-used INTEGER DEFAULT 0
-)
-""")
-
-
 db.commit()
 
 
 
 configs = {
-    "10 گیگ": "150 تومان",
-    "20 گیگ": "300 تومان",
-    "30 گیگ": "375 تومان",
-    "50 گیگ": "555 تومان",
-    "100 گیگ": "700 تومان"
+
+"10 گیگ":"150 تومان - 1 ماه",
+"15 گیگ":"225 تومان - 1 ماه",
+"20 گیگ":"300 تومان - 1 ماه",
+"30 گیگ":"375 تومان - 1 ماه",
+"40 گیگ":"465 تومان - 2 ماه",
+"50 گیگ":"555 تومان - 2 ماه",
+"100 گیگ":"700 تومان - 4 ماه"
+
 }
 
 
 
 user_menu = [
-    ["🛒 خرید کانفینگ"],
-    ["📦 سفارشات من"],
-    ["⭐ امتیاز"],
-    ["🎁 کد هدیه"]
+
+["🛒 خرید کانفینگ"],
+["📦 سفارش‌های من"],
+["⭐ امتیاز من"],
+["🎁 کد هدیه"],
+["👥 زیرمجموعه گیری"]
+
 ]
+
 
 
 admin_menu = [
-    ["📊 سفارش‌ها"],
-    ["🎁 ساخت هدیه"]
+
+["📊 سفارش‌ها"],
+["🎁 ساخت کد هدیه"],
+["👥 کاربران"]
+
 ]
 
 
+
 waiting_receipt = {}
-selected_config = {}
+def add_user(user_id, username):
+
+    cursor.execute(
+        "INSERT OR IGNORE INTO users(id,username) VALUES(?,?)",
+        (user_id, username)
+    )
+
+    db.commit()
+
+
+
+def get_points(user_id):
+
+    cursor.execute(
+        "SELECT points FROM users WHERE id=?",
+        (user_id,)
+    )
+
+    result = cursor.fetchone()
+
+    return result[0] if result else 0
+
+
+
+def add_points(user_id, amount):
+
+    cursor.execute(
+        "UPDATE users SET points=points+? WHERE id=?",
+        (amount,user_id)
+    )
+
+    db.commit()
+
+
+
+def create_gift(code, points):
+
+    cursor.execute(
+        "INSERT INTO gifts VALUES(?,?,?)",
+        (code,points,"")
+    )
+
+    db.commit()
+
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    user_id = update.effective_user.id
+    user = update.effective_user
 
-    if user_id == ADMIN_ID:
+    add_user(
+        user.id,
+        user.username
+    )
+
+
+    if user.id == ADMIN_ID:
 
         await update.message.reply_text(
             "👑 پنل مدیریت",
@@ -101,12 +170,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
 
         await update.message.reply_text(
-            "سلام 👋\nبه ربات فروش کانفینگ خوش آمدید.",
+            "سلام 👋",
             reply_markup=ReplyKeyboardMarkup(
                 user_menu,
                 resize_keyboard=True
             )
         )
+
 
 
 
@@ -116,95 +186,101 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
 
+
     if text == "🛒 خرید کانفینگ":
-
-        buttons = [
-            [name] for name in configs.keys()
-        ]
-
-        buttons.append(
-            ["🔙 برگشت"]
-        )
 
 
         await update.message.reply_text(
-            "📦 حجم کانفینگ را انتخاب کنید:",
+            "حجم را انتخاب کنید:",
             reply_markup=ReplyKeyboardMarkup(
-                buttons,
+                [[x] for x in configs.keys()],
                 resize_keyboard=True
             )
         )
 
 
-
     elif text in configs:
 
-        config = configs[text]
 
-        context.user_data["buy"] = text
-
-
-        await update.message.reply_text(
-
-            f"📦 کانفینگ: {text}\n\n"
-            f"⏳ زمان: {config['time']}\n"
-            f"💰 قیمت: {config['price']}\n\n"
-            f"💳 شماره کارت:\n{CARD_NUMBER}\n\n"
-            "بعد از پرداخت عکس رسید را ارسال کنید 📸"
-
+        cursor.execute(
+            "INSERT INTO orders(user_id,config,status,receipt) VALUES(?,?,?,?)",
+            (
+                user_id,
+                text,
+                "منتظر رسید",
+                ""
+            )
         )
+
+        db.commit()
 
 
         waiting_receipt[user_id] = True
 
 
-
-    elif text == "📦 خریدهای من":
-
         await update.message.reply_text(
-            "هنوز خریدی ثبت نشده است."
+            f"📦 {text}\n"
+            f"💰 {configs[text]}\n\n"
+            f"💳 شماره کارت:\n{CARD_NUMBER}\n\n"
+            "بعد از پرداخت عکس رسید را ارسال کنید 📸"
         )
 
 
 
     elif text == "⭐ امتیاز من":
 
+
         await update.message.reply_text(
-            "⭐ امتیاز شما: 0"
+            f"⭐ امتیاز شما: {get_points(user_id)}"
         )
+
 
 
 
     elif text == "🎁 کد هدیه":
 
+
+        context.user_data["gift"] = True
+
+
         await update.message.reply_text(
-            "🎁 کد هدیه را ارسال کنید."
+            "کد هدیه را بفرست:"
         )
 
 
 
-    elif text == "👥 زیرمجموعه گیری":
 
-        await update.message.reply_text(
-            "لینک دعوت شما ساخته می‌شود."
+    elif context.user_data.get("gift"):
+
+
+        code = text
+
+
+        cursor.execute(
+            "SELECT points,used FROM gifts WHERE code=?",
+            (code,)
         )
 
 
-
-    elif text == "🛟 پشتیبانی":
-
-        await update.message.reply_text(
-            "پیام خود را ارسال کنید."
-        )
+        result = cursor.fetchone()
 
 
+        if result and result[1] == "":
 
-    elif text == "🔙 برگشت":
 
-        await update.message.reply_text(
-            "منوی اصلی 👇",
-            reply_markup=ReplyKeyboardMarkup(
-                user_menu,
-                resize_keyboard=True
+            add_points(
+                user_id,
+                result[0]
             )
-        )
+
+
+            cursor.execute(
+                "UPDATE gifts SET used=? WHERE code=?",
+                (str(user_id),code)
+            )
+
+            db.commit()
+
+
+            await update.message.reply_text(
+                "✅ 
