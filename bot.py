@@ -71,7 +71,7 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "💳 شارژ حساب":
 
         await update.message.reply_text(
-            f"💳 6104-3373-0010-1910شماره کارت:\n\n{CARD_NUMBER}",
+            f"💳 شماره کارت:\n\n{CARD_NUMBER}",
             reply_markup=ReplyKeyboardMarkup(
                 [["🔙 برگشت"]],
                 resize_keyboard=True
