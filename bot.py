@@ -1,7 +1,18 @@
 from telegram import Update, ReplyKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    ContextTypes
+)
 
-from database import get_orders
+from database import (
+    create_gift,
+    use_gift,
+    get_points,
+    add_points
+)
 
 
 TOKEN = "8932008249:AAH8qwRLOYUtsbO_mFJ31MMUnJbjoLWsIr4"
@@ -10,23 +21,6 @@ ADMIN_ID = 8635403087
 
 CARD_NUMBER = "6104-3373-0010-1910"
 
-
-menu = [
-    ["🛒 خرید کانفینگ"],
-    ["📦 کانفینگ‌های خریداری‌شده"],
-    ["💳 شارژ حساب"],
-    ["👥 زیرمجموعه‌گیری"],
-    ["⭐ امتیازهای من"],
-    ["🛟 پشتیبانی"]
-]
-
-
-admin_menu = [
-    ["📊 سفارش‌ها"],
-    ["👥 کاربران"],
-    ["🎁 کد هدیه"],
-    ["🔙 برگشت"]
-]
 
 
 configs = {
@@ -40,20 +34,51 @@ configs = {
 }
 
 
+
+menu = [
+    ["🛒 خرید کانفینگ"],
+    ["📦 کانفینگ‌های خریداری‌شده"],
+    ["💳 شارژ حساب"],
+    ["👥 زیرمجموعه‌گیری"],
+    ["⭐ امتیازهای من"],
+    ["🎁 وارد کردن کد هدیه"],
+    ["🛟 پشتیبانی"]
+]
+
+
+
+admin_menu = [
+    ["📊 سفارش‌ها"],
+    ["👥 کاربران"],
+    ["🎁 ساخت کد هدیه"],
+    ["🔙 برگشت"]
+]
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    buttons = menu.copy()
+    user_id = update.effective_user.id
 
-    if update.effective_user.id == ADMIN_ID:
-        buttons.append(["👑 پنل مدیریت"])
+    if user_id == ADMIN_ID:
 
-    await update.message.reply_text(
-        "خوش آمدید 👋",
-        reply_markup=ReplyKeyboardMarkup(
-            buttons,
-            resize_keyboard=True
+        await update.message.reply_text(
+            "👑 پنل ادمین فعال شد",
+            reply_markup=ReplyKeyboardMarkup(
+                admin_menu,
+                resize_keyboard=True
+            )
         )
-    )
+
+    else:
+
+        await update.message.reply_text(
+            "خوش آمدید 👋",
+            reply_markup=ReplyKeyboardMarkup(
+                menu,
+                resize_keyboard=True
+            )
+        )
+
+
+
 
 async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -61,9 +86,13 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
 
+
+    # خرید کانفینگ
+
     if text == "🛒 خرید کانفینگ":
 
         buttons = [[x] for x in configs]
+
         buttons.append(["🔙 برگشت"])
 
         await update.message.reply_text(
@@ -75,93 +104,155 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+
     elif text in configs:
 
         await update.message.reply_text(
-            "✅ انتخاب شما:\n\n"
-            + configs[text]
-            + "\n\n💳 بعد از پرداخت منتظر تایید پشتیبانی بمانید:\n"
+            configs[text] +
+            "\n\n💳 مشترک عزیز لطفا بعد از پرداخت رسید را ارسال کرده و منتظر باشد توسط پشتیبانی تایید شود :\n"
             + CARD_NUMBER
-            + "\n\nبعد از پرداخت رسید را ارسال کنید.",
-            reply_markup=ReplyKeyboardMarkup(
-                [["🔙 برگشت"]],
-                resize_keyboard=True
-            )
         )
+
 
 
     elif text == "💳 شارژ حساب":
 
         await update.message.reply_text(
-            f"💳 6104-3373-0010-1910:\n\n{CARD_NUMBER}",
-            reply_markup=ReplyKeyboardMarkup(
-                [["🔙 برگشت"]],
-                resize_keyboard=True
-            )
+            "💳  بعد از پرداخت رسید را ارسال کنید و منتظر تایید پشتیبانی باشید:\n\n"
+            + CARD_NUMBER
         )
 
-
-    elif text == "👥 زیرمجموعه‌گیری":
-
-        bot = await context.bot.get_me()
-
-        link = f"https://t.me/{bot.username}?start={user_id}"
-
-        await update.message.reply_text(
-            f"👥 لینک دعوت شما:\n\n{link}"
-        )
-
-
-    elif text == "⭐ امتیازهای من":
-
-        await update.message.reply_text(
-            "⭐ امتیاز شما: 0"
-        )
-
-
-    elif text == "👑 پنل مدیریت" and user_id == ADMIN_ID:
-
-        await update.message.reply_text(
-            "👑 پنل مدیریت",
-            reply_markup=ReplyKeyboardMarkup(
-                admin_menu,
-                resize_keyboard=True
-            )
-        )
-
-    elif text == "📊 سفارش‌ها" and user_id == ADMIN_ID:
-
-        orders = get_orders()
-
-        if orders:
-            await update.message.reply_text(
-                f"📦 سفارش‌ها:\n\n{orders}"
-            )
-        else:
-            await update.message.reply_text(
-                "❌ سفارشی وجود ندارد."
-            )
-
-
-    elif text == "👥 کاربران" and user_id == ADMIN_ID:
-
-        await update.message.reply_text(
-            "👥 بخش کاربران در مرحله بعد اضافه می‌شود."
-        )
-
-
-    elif text == "🎁 کد هدیه" and user_id == ADMIN_ID:
-
-        await update.message.reply_text(
-            "🎁 ساخت کد هدیه در مرحله بعد اضافه می‌شود."
-        )
 
 
     elif text == "📦 کانفینگ‌های خریداری‌شده":
 
         await update.message.reply_text(
-            "هنوز خریدی ثبت نشده."
+            "هنوز سفارشی ثبت نشده."
         )
+
+
+
+    elif text == "🔙 برگشت":
+
+        if user_id == ADMIN_ID:
+
+            await update.message.reply_text(
+                "👑 پنل مدیریت",
+                reply_markup=ReplyKeyboardMarkup(
+                    admin_menu,
+                    resize_keyboard=True
+                )
+            )
+
+        else:
+
+            await update.message.reply_text(
+                "منوی اصلی",
+                reply_markup=ReplyKeyboardMarkup(
+                    menu,
+                    resize_keyboard=True
+                )
+)
+                # پنل مدیریت
+
+    elif text == "🎁 ساخت کد هدیه" and user_id == ADMIN_ID:
+
+        context.user_data["create_gift"] = True
+
+        await update.message.reply_text(
+            "🎁 ساخت کد هدیه\n\n"
+            "فرمت ارسال:\n"
+            "نام_کد:تعداد_امتیاز\n\n"
+            "مثال:\n"
+            "HACK50:50"
+        )
+
+
+    elif context.user_data.get("create_gift") and user_id == ADMIN_ID:
+
+        try:
+
+            code, points = text.split(":")
+
+            create_gift(
+                code,
+                int(points)
+            )
+
+
+            context.user_data["create_gift"] = False
+
+
+            await update.message.reply_text(
+                "✅ کد هدیه ساخته شد."
+            )
+
+
+        except:
+
+            await update.message.reply_text(
+                "❌ فرمت اشتباه است.\nمثال:\nHACK50:50"
+            )
+
+
+
+    elif text == "📊 سفارش‌ها" and user_id == ADMIN_ID:
+
+        await update.message.reply_text(
+            "📊 بخش سفارش‌ها در حال آماده‌سازی است."
+        )
+
+
+
+    elif text == "👥 کاربران" and user_id == ADMIN_ID:
+
+        await update.message.reply_text(
+            "👥 بخش کاربران در حال آماده‌سازی است."
+        )
+            # وارد کردن کد هدیه
+
+    elif text == "🎁 وارد کردن کد هدیه":
+
+        context.user_data["use_gift"] = True
+
+        await update.message.reply_text(
+            "🎁 کد هدیه را ارسال کنید:"
+        )
+
+
+
+    elif context.user_data.get("use_gift"):
+
+        result = use_gift(
+            user_id,
+            text
+        )
+
+
+        context.user_data["use_gift"] = False
+
+
+        if result:
+
+            await update.message.reply_text(
+                "🎉 کد هدیه فعال شد!\n"
+                f"⭐ امتیاز شما: {get_points(user_id)}"
+            )
+
+        else:
+
+            await update.message.reply_text(
+                "❌ کد اشتباه است یا قبلاً استفاده شده."
+            )
+
+
+
+    elif text == "⭐ امتیازهای من":
+
+        await update.message.reply_text(
+            f"⭐ امتیاز شما: {get_points(user_id)}"
+        )
+
 
 
     elif text == "🛟 پشتیبانی":
@@ -171,17 +262,15 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-    elif text == "🔙 برگشت":
-
-        await start(update, context)
-
-
 
 app = Application.builder().token(TOKEN).build()
 
 
 app.add_handler(
-    CommandHandler("start", start)
+    CommandHandler(
+        "start",
+        start
+    )
 )
 
 
