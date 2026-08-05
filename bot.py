@@ -14,6 +14,10 @@ from telegram.ext import (
     filters
 )
 
+import sqlite3
+import random
+import string
+
 
 TOKEN = "8932008249:AAH8qwRLOYUtsbO_mFJ31MMUnJbjoLWsIr4"
 
@@ -23,41 +27,53 @@ CARD_NUMBER = "6104-3373-0010-1910"
 
 
 
+# دیتابیس
+
+db = sqlite3.connect("bot.db", check_same_thread=False)
+cursor = db.cursor()
+
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users(
+id INTEGER PRIMARY KEY,
+username TEXT,
+points INTEGER DEFAULT 0
+)
+""")
+
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS gifts(
+code TEXT PRIMARY KEY,
+points INTEGER,
+used INTEGER DEFAULT 0
+)
+""")
+
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS orders(
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+user_id INTEGER,
+config TEXT,
+status TEXT,
+receipt TEXT
+)
+""")
+
+
+db.commit()
+
+
+
 configs = {
-    "10 گیگ": {
-        "price": "150 تومان",
-        "time": "1 ماه"
-    },
-
-    "15 گیگ": {
-        "price": "225 تومان",
-        "time": "1 ماه"
-    },
-
-    "20 گیگ": {
-        "price": "300 تومان",
-        "time": "1 ماه"
-    },
-
-    "30 گیگ": {
-        "price": "375 تومان",
-        "time": "1 ماه"
-    },
-
-    "40 گیگ": {
-        "price": "465 تومان",
-        "time": "2 ماه"
-    },
-
-    "50 گیگ": {
-        "price": "555 تومان",
-        "time": "2 ماه"
-    },
-
-    "100 گیگ": {
-        "price": "700 تومان",
-        "time": "4 ماه"
-    }
+    "10 گیگ": ("150 تومان", "1 ماه"),
+    "15 گیگ": ("225 تومان", "1 ماه"),
+    "20 گیگ": ("300 تومان", "1 ماه"),
+    "30 گیگ": ("375 تومان", "1 ماه"),
+    "40 گیگ": ("465 تومان", "2 ماه"),
+    "50 گیگ": ("555 تومان", "2 ماه"),
+    "100 گیگ": ("700 تومان", "4 ماه")
 }
 
 
@@ -72,26 +88,69 @@ user_menu = [
 ]
 
 
-
 admin_menu = [
     ["📊 سفارش‌ها"],
     ["👥 کاربران"],
     ["🎁 ساخت کد هدیه"],
-    ["📢 پیام همگانی"],
-    ["🔙 خروج از پنل"]
+    ["📢 پیام همگانی"]
 ]
 
 
-
 waiting_receipt = {}
+waiting_gift = {}
+waiting_config = {}
 
-orders = {}
+def add_user(user_id, username):
+
+    cursor.execute(
+        "INSERT OR IGNORE INTO users(id,username) VALUES(?,?)",
+        (user_id, username)
+    )
+
+    db.commit()
+
+
+
+def get_points(user_id):
+
+    cursor.execute(
+        "SELECT points FROM users WHERE id=?",
+        (user_id,)
+    )
+
+    result = cursor.fetchone()
+
+    if result:
+        return result[0]
+
+    return 0
+
+
+
+
+def add_points(user_id, points):
+
+    cursor.execute(
+        "UPDATE users SET points = points + ? WHERE id=?",
+        (points, user_id)
+    )
+
+    db.commit()
+
+
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    user_id = update.effective_user.id
+    user = update.effective_user
+
+    add_user(
+        user.id,
+        user.username
+    )
 
 
-    if user_id == ADMIN_ID:
+    if user.id == ADMIN_ID:
 
         await update.message.reply_text(
             "👑 پنل مدیریت",
@@ -104,7 +163,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
 
         await update.message.reply_text(
-            "سلام 👋\nبه ربات فروش کانفینگ خوش آمدید.",
+            "سلام 👋 خوش آمدید",
             reply_markup=ReplyKeyboardMarkup(
                 user_menu,
                 resize_keyboard=True
@@ -127,16 +186,11 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
         buttons = [
-            [name] for name in configs.keys()
+            [x] for x in configs.keys()
         ]
 
-        buttons.append(
-            ["🔙 برگشت"]
-        )
-
-
         await update.message.reply_text(
-            "حجم کانفینگ را انتخاب کنید:",
+            "📦 حجم را انتخاب کنید:",
             reply_markup=ReplyKeyboardMarkup(
                 buttons,
                 resize_keyboard=True
@@ -145,21 +199,19 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
-    # نمایش قیمت و کارت
-
     elif text in configs:
 
 
-        config = configs[text]
+        price, time = configs[text]
 
 
-        context.user_data["buy"] = text
+        waiting_config[user_id] = text
 
 
         await update.message.reply_text(
-            f"📦 کانفینگ انتخابی:\n{text}\n\n"
-            f"⏳ زمان: {config['time']}\n"
-            f"💰 قیمت: {config['price']}\n\n"
+            f"📦 کانفینگ: {text}\n"
+            f"⏳ مدت: {time}\n"
+            f"💰 قیمت: {price}\n\n"
             f"💳 شماره کارت:\n{CARD_NUMBER}\n\n"
             "بعد از پرداخت عکس رسید را ارسال کنید 📸"
         )
@@ -169,34 +221,86 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
-    # دریافت عکس رسید
 
-    elif text == "🔙 برگشت":
+    elif text == "📦 خریدهای من":
 
+
+        cursor.execute(
+            "SELECT config,status FROM orders WHERE user_id=?",
+            (user_id,)
+        )
+
+        data = cursor.fetchall()
+
+
+        if data:
+
+            msg = ""
+
+            for x in data:
+
+                msg += (
+                    f"📦 {x[0]}\n"
+                    f"📌 وضعیت: {x[1]}\n\n"
+                )
+
+
+            await update.message.reply_text(msg)
+
+        else:
+
+            await update.message.reply_text(
+                "سفارشی ندارید."
+            )
+
+
+
+    elif text == "⭐ امتیاز من":
 
         await update.message.reply_text(
-            "منوی اصلی 👇",
-            reply_markup=ReplyKeyboardMarkup(
-                user_menu,
-                resize_keyboard=True
-            )
+            f"⭐ امتیاز شما: {get_points(user_id)}"
         )
+
+
+
+    elif text == "🎁 کد هدیه":
+
+        waiting_gift[user_id] = True
+
+        await update.message.reply_text(
+            "🎁 کد هدیه را ارسال کنید:"
+)
         async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
 
 
-    if user_id in waiting_receipt and waiting_receipt[user_id] == True:
+    if waiting_receipt.get(user_id):
+
+        photo = update.message.photo[-1].file_id
+
+        config = waiting_config.get(
+            user_id,
+            "نامشخص"
+        )
 
 
-        photo = update.message.photo[-1]
+        cursor.execute(
+            """
+            INSERT INTO orders
+            (user_id,config,status,receipt)
+            VALUES(?,?,?,?)
+            """,
+            (
+                user_id,
+                config,
+                "در انتظار تایید",
+                photo
+            )
+        )
 
 
-        orders[user_id] = {
-            "config": context.user_data.get("buy"),
-            "status": "در انتظار تایید",
-            "photo": photo.file_id
-        }
+        db.commit()
 
 
         waiting_receipt[user_id] = False
@@ -206,13 +310,13 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [
                 InlineKeyboardButton(
-                    "✅ تایید پرداخت",
-                    callback_data=f"accept_{user_id}"
+                    "✅ تایید",
+                    callback_data=f"ok_{user_id}"
                 ),
 
                 InlineKeyboardButton(
-                    "❌ رد پرداخت",
-                    callback_data=f"reject_{user_id}"
+                    "❌ رد",
+                    callback_data=f"no_{user_id}"
                 )
             ]
         ]
@@ -220,28 +324,22 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
         await context.bot.send_photo(
-            chat_id=ADMIN_ID,
-            photo=photo.file_id,
+            ADMIN_ID,
+            photo,
             caption=
-            "📥 رسید جدید\n\n"
+            f"📥 رسید جدید\n\n"
             f"👤 کاربر: {user_id}\n"
-            f"📦 کانفینگ: {orders[user_id]['config']}",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            f"📦 کانفینگ: {config}",
+            reply_markup=InlineKeyboardMarkup(
+                keyboard
+            )
         )
-
 
 
         await update.message.reply_text(
-            "✅ رسید شما ارسال شد.\nمنتظر تایید باشید."
+            "✅ رسید ارسال شد. منتظر تایید باشید."
         )
 
-
-
-    else:
-
-        await update.message.reply_text(
-            "❌ لطفاً اول خرید کانفینگ را انجام دهید."
-        )
 
 
 
@@ -256,144 +354,115 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
 
 
-
-    if data.startswith("accept_"):
-
-
-        user_id = int(
-            data.split("_")[1]
-        )
+    user_id = int(
+        data.split("_")[1]
+    )
 
 
-        if user_id in orders:
+    if data.startswith("ok"):
 
 
-            orders[user_id]["status"] = "تایید شده"
-
-
-
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=
-                "✅ پرداخت شما تایید شد.\n\n"
-                "کانفیگ شما به زودی ارسال می‌شود."
+        cursor.execute(
+            """
+            UPDATE orders
+            SET status=?
+            WHERE user_id=?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (
+                "تایید شده",
+                user_id
             )
+        )
+
+        db.commit()
 
 
 
-            await query.edit_message_caption(
-                "✅ پرداخت تایید شد."
+        await context.bot.send_message(
+            user_id,
+            "✅ پرداخت تایید شد.\nکانفیگ شما ارسال می‌شود."
+        )
+
+
+
+        await query.edit_message_caption(
+            "✅ تایید شد"
+        )
+
+
+
+
+    elif data.startswith("no"):
+
+
+        cursor.execute(
+            """
+            UPDATE orders
+            SET status=?
+            WHERE user_id=?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (
+                "رد شده",
+                user_id
             )
-
-
-
-    elif data.startswith("reject_"):
-
-
-        user_id = int(
-            data.split("_")[1]
         )
 
-
-        if user_id in orders:
-
-
-            orders[user_id]["status"] = "رد شده"
+        db.commit()
 
 
 
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=
-                "❌ پرداخت شما رد شد.\n"
-                "لطفاً دوباره بررسی کنید."
-            )
-
-
-            await query.edit_message_caption(
-                "❌ پرداخت رد شد."
-        )
-                elif text == "⭐ امتیاز من":
-
-        await update.message.reply_text(
-            "⭐ امتیاز شما: 0"
+        await context.bot.send_message(
+            user_id,
+            "❌ پرداخت رد شد."
         )
 
 
 
-    elif text == "🎁 کد هدیه":
-
-        context.user_data["gift"] = True
-
-        await update.message.reply_text(
-            "🎁 کد هدیه خود را ارسال کنید:"
+        await query.edit_message_caption(
+            "❌ رد شد"
         )
 
 
 
-    elif context.user_data.get("gift"):
-
-        code = text
-
-        # اینجا به دیتابیس وصل می‌شود
-        # use_gift(user_id, code)
-
-        context.user_data["gift"] = False
 
 
-        await update.message.reply_text(
-            "✅ کد هدیه بررسی شد."
+
+# ساخت کد هدیه توسط ادمین
+
+async def create_gift_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+
+    code = "".join(
+        random.choice(string.ascii_uppercase)
+        for _ in range(8)
+    )
+
+
+    cursor.execute(
+        "INSERT INTO gifts(code,points) VALUES(?,?)",
+        (
+            code,
+            50
         )
+    )
+
+    db.commit()
 
 
-
-    elif text == "📊 سفارش‌ها" and user_id == ADMIN_ID:
-
-        if orders:
-
-            result = ""
-
-            for uid, order in orders.items():
-
-                result += (
-                    f"👤 {uid}\n"
-                    f"📦 {order['config']}\n"
-                    f"📌 {order['status']}\n\n"
-                )
-
-
-            await update.message.reply_text(
-                result
-            )
-
-        else:
-
-            await update.message.reply_text(
-                "سفارشی وجود ندارد."
-            )
-
-
-
-    elif text == "👥 کاربران" and user_id == ADMIN_ID:
-
-        await update.message.reply_text(
-            "👥 بخش کاربران"
-        )
-
-
-
-    elif text == "📢 پیام همگانی" and user_id == ADMIN_ID:
-
-        await update.message.reply_text(
-            "متن پیام را ارسال کنید."
-        )
-
-
+    await update.message.reply_text(
+        f"🎁 کد هدیه ساخته شد:\n\n{code}\n\n⭐ 50 امتیاز"
+    )
 
 
 
 app = Application.builder().token(TOKEN).build()
-
 
 
 app.add_handler(
@@ -404,14 +473,12 @@ app.add_handler(
 )
 
 
-
 app.add_handler(
     MessageHandler(
         filters.TEXT & ~filters.COMMAND,
         message
     )
 )
-
 
 
 app.add_handler(
@@ -422,16 +489,12 @@ app.add_handler(
 )
 
 
-
 app.add_handler(
     CallbackQueryHandler(
         button_handler
     )
 )
 
-
-
-print("Bot Started...")
 
 
 app.run_polling()
