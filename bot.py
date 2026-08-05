@@ -85,11 +85,18 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "هنوز خریدی ثبت نشده."
         )
 
+elif text == "👥 زیرمجموعه‌گیری":
 
-    elif text == "👥 زیرمجموعه‌گیری":
+    user_id = update.effective_user.id
 
-        await update.message.reply_text(
-            "بخش رفرال به زودی فعال می‌شود."
+    bot_username = (await context.bot.get_me()).username
+
+    link = f"https://t.me/{bot_username}?start={user_id}"
+
+    await update.message.reply_text(
+        f"👥 لینک زیرمجموعه شما:\n\n{link}\n\n"
+        "هر کسی با این لینک وارد شود برای شما ثبت می‌شود."
+    
         )
 
 
