@@ -7,16 +7,9 @@ cursor = db.cursor()
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users(
 id INTEGER PRIMARY KEY,
-username TEXT
-)
-""")
-
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS configs(
-id INTEGER PRIMARY KEY,
-user_id INTEGER,
-config TEXT
+username TEXT,
+referrer INTEGER DEFAULT 0,
+points INTEGER DEFAULT 0
 )
 """)
 
@@ -26,7 +19,8 @@ CREATE TABLE IF NOT EXISTS orders(
 id INTEGER PRIMARY KEY,
 user_id INTEGER,
 config TEXT,
-status TEXT
+status TEXT,
+receipt TEXT
 )
 """)
 
@@ -34,37 +28,66 @@ status TEXT
 db.commit()
 
 
+def add_user(user_id, username, referrer=0):
 
-def add_user(user_id, username):
     cursor.execute(
-        "INSERT OR IGNORE INTO users VALUES (?,?)",
-        (user_id, username)
+        "INSERT OR IGNORE INTO users(id,username,referrer,points) VALUES (?,?,?,?)",
+        (user_id, username, referrer, 0)
     )
-    db.commit()
 
+    if referrer:
+        cursor.execute(
+            "UPDATE users SET points = points + 10 WHERE id=?",
+            (referrer,)
+        )
 
-
-def save_config(user_id, text):
-    cursor.execute(
-        "INSERT INTO configs(user_id,config) VALUES (?,?)",
-        (user_id,text)
-    )
     db.commit()
 
 
 
 def save_order(user_id, config):
+
     cursor.execute(
-        "INSERT INTO orders(user_id,config,status) VALUES (?,?,?)",
-        (user_id, config, "در انتظار پرداخت")
+        "INSERT INTO orders(user_id,config,status,receipt) VALUES (?,?,?,?)",
+        (user_id, config, "در انتظار پرداخت", "")
     )
+
+    db.commit()
+
+
+
+def save_receipt(user_id, receipt):
+
+    cursor.execute(
+        "UPDATE orders SET receipt=? WHERE user_id=? ORDER BY id DESC LIMIT 1",
+        (receipt, user_id)
+    )
+
     db.commit()
 
 
 
 def get_user_orders(user_id):
+
     cursor.execute(
         "SELECT config,status FROM orders WHERE user_id=?",
         (user_id,)
     )
+
     return cursor.fetchall()
+
+
+
+def get_points(user_id):
+
+    cursor.execute(
+        "SELECT points FROM users WHERE id=?",
+        (user_id,)
+    )
+
+    result = cursor.fetchone()
+
+    if result:
+        return result[0]
+
+    return 0
