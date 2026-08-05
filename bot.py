@@ -1,15 +1,15 @@
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-from config import *
-from database import *
+
+TOKEN = "8932008249:AAH8qwRLOYUtsbO_mFJ31MMUnJbjoLWsIr4"
+CARD_NUMBER = " 6104-3373-0010-1910"
 
 
 menu = [
     ["🛒 خرید کانفینگ"],
     ["📦 کانفینگ‌های خریداری‌شده"],
     ["💳 شارژ حساب"],
-    ["🎁 وارد کردن کد هدیه"],
     ["👥 زیرمجموعه‌گیری"],
     ["⭐ امتیازهای من"],
     ["🛟 پشتیبانی"]
@@ -29,32 +29,27 @@ configs = {
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    user = update.effective_user
-
-    ref = 0
-
-    if context.args:
-        ref = int(context.args[0])
-
-    add_user(user.id, user.username, ref)
-
     await update.message.reply_text(
         "خوش آمدید 👋",
-        reply_markup=ReplyKeyboardMarkup(menu, resize_keyboard=True)
+        reply_markup=ReplyKeyboardMarkup(
+            menu,
+            resize_keyboard=True
+        )
     )
-    async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+
+async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
-    user_id = update.effective_user.id
 
 
     if text == "🛒 خرید کانفینگ":
 
-        buttons = [[x] for x in configs.keys()]
+        buttons = [[x] for x in configs]
         buttons.append(["🔙 برگشت"])
 
         await update.message.reply_text(
-            "📦 حجم مورد نظر را انتخاب کنید:",
+            "حجم را انتخاب کنید:",
             reply_markup=ReplyKeyboardMarkup(
                 buttons,
                 resize_keyboard=True
@@ -64,12 +59,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif text in configs:
 
-        save_order(user_id, configs[text])
-
         await update.message.reply_text(
-            f"✅ سفارش ثبت شد\n\n"
-            f"{configs[text]}\n\n"
-            "💳  6104-3373-0010-1910پرداخت کنید و عکس رسید را ارسال کنید.",
+            configs[text],
             reply_markup=ReplyKeyboardMarkup(
                 [["🔙 برگشت"]],
                 resize_keyboard=True
@@ -80,47 +71,39 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "💳 شارژ حساب":
 
         await update.message.reply_text(
-            "💳  6104-3373-0010-1910:\n\n"
-            f"{CARD_NUMBER}\n\n"
-            "  6104-3373-0010-1910بعد از پرداخت عکس رسید را ارسال کنید.",
+            f"💳 6104-3373-0010-1910شماره کارت:\n\n{CARD_NUMBER}",
             reply_markup=ReplyKeyboardMarkup(
                 [["🔙 برگشت"]],
                 resize_keyboard=True
             )
-    )
-            elif text == "📦 کانفینگ‌های خریداری‌شده":
-
-        orders = get_user_orders(user_id)
-
-        if not orders:
-            await update.message.reply_text("هنوز سفارشی ندارید.")
-
-        else:
-            msg = "📦 سفارش‌های شما:\n\n"
-
-            for order in orders:
-                msg += f"🔹 {order[0]}\nوضعیت: {order[1]}\n\n"
-
-            await update.message.reply_text(msg)
+        )
 
 
-    elif text == "⭐ امتیازهای من":
-
-        points = get_points(user_id)
+    elif text == "📦 کانفینگ‌های خریداری‌شده":
 
         await update.message.reply_text(
-            f"⭐ امتیاز شما: {points}"
+            "هنوز خریدی ثبت نشده."
         )
 
 
     elif text == "👥 زیرمجموعه‌گیری":
 
-        bot_username = (await context.bot.get_me()).username
+        await update.message.reply_text(
+            "بخش رفرال به زودی فعال می‌شود."
+        )
 
-        link = f"https://t.me/{bot_username}?start={user_id}"
+
+    elif text == "⭐ امتیازهای من":
 
         await update.message.reply_text(
-            f"👥 لینک شما:\n\n{link}"
+            "⭐ امتیاز شما: 0"
+        )
+
+
+    elif text == "🛟 پشتیبانی":
+
+        await update.message.reply_text(
+            "پیام خود را ارسال کنید."
         )
 
 
@@ -135,25 +118,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    user_id = update.effective_user.id
-
-    file_id = update.message.photo[-1].file_id
-
-    save_receipt(user_id, file_id)
-
-    await update.message.reply_text(
-        "✅ رسید شما دریافت شد، در انتظار بررسی."
-    )
-
-
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
-app.add_handler(MessageHandler(filters.PHOTO, photo))
 
-
-if __name__ == "__main__":
-    app.run_polling()
+app.run_polling()
