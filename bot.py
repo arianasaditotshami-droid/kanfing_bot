@@ -3,7 +3,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 
 
 TOKEN = "8932008249:AAH8qwRLOYUtsbO_mFJ31MMUnJbjoLWsIr4"
-CARD_NUMBER = " 6104-3373-0010-1910"
+CARD_NUMBER = "6104-3373-0010-1910"
 
 
 menu = [
@@ -29,8 +29,10 @@ configs = {
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
+    user_id = update.effective_user.id
+
     await update.message.reply_text(
-        "خوش آمدید 👋",
+        f"خوش آمدید 👋\n\nشناسه شما: {user_id}",
         reply_markup=ReplyKeyboardMarkup(
             menu,
             resize_keyboard=True
@@ -41,6 +43,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
+    user_id = update.effective_user.id
 
 
     if text == "🛒 خرید کانفینگ":
@@ -60,7 +63,7 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text in configs:
 
         await update.message.reply_text(
-            configs[text],
+            "✅ انتخاب شما:\n\n" + configs[text],
             reply_markup=ReplyKeyboardMarkup(
                 [["🔙 برگشت"]],
                 resize_keyboard=True
@@ -68,10 +71,10 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-    elif text == "💳 شارژ حساب":
+    elif text == "💳 6104-3373-0010-1910شارژ حساب":
 
         await update.message.reply_text(
-            f"💳 شماره کارت:\n\n{CARD_NUMBER}",
+            f"💳 6104-3373-0010-1910:\n\n{CARD_NUMBER}",
             reply_markup=ReplyKeyboardMarkup(
                 [["🔙 برگشت"]],
                 resize_keyboard=True
@@ -79,24 +82,15 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-    elif text == "📦 کانفینگ‌های خریداری‌شده":
+    elif text == "👥 زیرمجموعه‌گیری":
+
+        bot = await context.bot.get_me()
+
+        link = f"https://t.me/{bot.username}?start={user_id}"
 
         await update.message.reply_text(
-            "هنوز خریدی ثبت نشده."
-        )
-
-elif text == "👥 زیرمجموعه‌گیری":
-
-    user_id = update.effective_user.id
-
-    bot_username = (await context.bot.get_me()).username
-
-    link = f"https://t.me/{bot_username}?start={user_id}"
-
-    await update.message.reply_text(
-        f"👥 لینک زیرمجموعه شما:\n\n{link}\n\n"
-        "هر کسی با این لینک وارد شود برای شما ثبت می‌شود."
-    
+            "👥 لینک دعوت شما:\n\n"
+            f"{link}"
         )
 
 
@@ -104,6 +98,13 @@ elif text == "👥 زیرمجموعه‌گیری":
 
         await update.message.reply_text(
             "⭐ امتیاز شما: 0"
+        )
+
+
+    elif text == "📦 کانفینگ‌های خریداری‌شده":
+
+        await update.message.reply_text(
+            "هنوز خریدی ثبت نشده."
         )
 
 
