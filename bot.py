@@ -71,7 +71,7 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-    elif text == "💳 6104-3373-0010-1910شارژ حساب":
+    elif text == "💳 شارژ حساب":
 
         await update.message.reply_text(
             f"💳 6104-3373-0010-1910:\n\n{CARD_NUMBER}",
