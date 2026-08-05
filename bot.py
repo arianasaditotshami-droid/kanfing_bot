@@ -1,18 +1,14 @@
-from telegram import Update, ReplyKeyboardMarkup
+from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
     MessageHandler,
-    filters,
-    ContextTypes
+    CallbackQueryHandler,
+    ContextTypes,
+    filters
 )
 
-from database import (
-    create_gift,
-    use_gift,
-    get_points,
-    add_points
-)
+import sqlite3
 
 
 TOKEN = "8932008249:AAH8qwRLOYUtsbO_mFJ31MMUnJbjoLWsIr4"
@@ -23,44 +19,79 @@ CARD_NUMBER = "6104-3373-0010-1910"
 
 
 
+# دیتابیس
+
+db = sqlite3.connect("bot.db", check_same_thread=False)
+cursor = db.cursor()
+
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users(
+id INTEGER PRIMARY KEY,
+username TEXT,
+points INTEGER DEFAULT 0
+)
+""")
+
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS orders(
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+user_id INTEGER,
+config TEXT,
+status TEXT,
+receipt TEXT
+)
+""")
+
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS gifts(
+code TEXT PRIMARY KEY,
+points INTEGER,
+used INTEGER DEFAULT 0
+)
+""")
+
+
+db.commit()
+
+
+
 configs = {
-    "10 گیگ": "10 گیگ + 1 ماه = 150 تومان",
-    "15 گیگ": "15 گیگ + 1 ماه = 225 تومان",
-    "20 گیگ": "20 گیگ + 1 ماه = 300 تومان",
-    "30 گیگ": "30 گیگ + 1 ماه = 375 تومان",
-    "40 گیگ": "40 گیگ + 2 ماه = 465 تومان",
-    "50 گیگ": "50 گیگ + 2 ماه = 555 تومان",
-    "100 گیگ": "100 گیگ + 4 ماه = 700 تومان"
+    "10 گیگ": "150 تومان",
+    "20 گیگ": "300 تومان",
+    "30 گیگ": "375 تومان",
+    "50 گیگ": "555 تومان",
+    "100 گیگ": "700 تومان"
 }
 
 
 
-menu = [
+user_menu = [
     ["🛒 خرید کانفینگ"],
-    ["📦 کانفینگ‌های خریداری‌شده"],
-    ["💳 شارژ حساب"],
-    ["👥 زیرمجموعه‌گیری"],
-    ["⭐ امتیازهای من"],
-    ["🎁 وارد کردن کد هدیه"],
-    ["🛟 پشتیبانی"]
+    ["📦 سفارشات من"],
+    ["⭐ امتیاز"],
+    ["🎁 کد هدیه"]
 ]
-
 
 
 admin_menu = [
     ["📊 سفارش‌ها"],
-    ["👥 کاربران"],
-    ["🎁 ساخت کد هدیه"],
-    ["🔙 برگشت"]
+    ["🎁 ساخت هدیه"]
+]
 
-    async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+waiting_receipt = {}
+selected_config = {}
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
 
     if user_id == ADMIN_ID:
 
         await update.message.reply_text(
-            "👑 پنل ادمین فعال شد",
+            "👑 پنل مدیریت",
             reply_markup=ReplyKeyboardMarkup(
                 admin_menu,
                 resize_keyboard=True
@@ -70,13 +101,12 @@ admin_menu = [
     else:
 
         await update.message.reply_text(
-            "خوش آمدید 👋",
+            "سلام 👋\nبه ربات فروش کانفینگ خوش آمدید.",
             reply_markup=ReplyKeyboardMarkup(
-                menu,
+                user_menu,
                 resize_keyboard=True
             )
         )
-
 
 
 
@@ -86,17 +116,19 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
 
-
-    # خرید کانفینگ
-
     if text == "🛒 خرید کانفینگ":
 
-        buttons = [[x] for x in configs]
+        buttons = [
+            [name] for name in configs.keys()
+        ]
 
-        buttons.append(["🔙 برگشت"])
+        buttons.append(
+            ["🔙 برگشت"]
+        )
+
 
         await update.message.reply_text(
-            "حجم را انتخاب کنید:",
+            "📦 حجم کانفینگ را انتخاب کنید:",
             reply_markup=ReplyKeyboardMarkup(
                 buttons,
                 resize_keyboard=True
@@ -107,151 +139,54 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif text in configs:
 
+        config = configs[text]
+
+        context.user_data["buy"] = text
+
+
         await update.message.reply_text(
-            configs[text] +
-            "\n\n💳 مشترک مورد نظر بعد از پرداخت و ارسال رسید لطفا منتظر تایید پشتیبانی باشید:\n"
-            + CARD_NUMBER
+
+            f"📦 کانفینگ: {text}\n\n"
+            f"⏳ زمان: {config['time']}\n"
+            f"💰 قیمت: {config['price']}\n\n"
+            f"💳 شماره کارت:\n{CARD_NUMBER}\n\n"
+            "بعد از پرداخت عکس رسید را ارسال کنید 📸"
+
+        )
+
+
+        waiting_receipt[user_id] = True
+
+
+
+    elif text == "📦 خریدهای من":
+
+        await update.message.reply_text(
+            "هنوز خریدی ثبت نشده است."
         )
 
 
 
-    elif text == "💳 شارژ حساب":
+    elif text == "⭐ امتیاز من":
 
         await update.message.reply_text(
-            "💳 شماره کارت:\n\n"
-            + CARD_NUMBER
+            "⭐ امتیاز شما: 0"
         )
 
 
 
-    elif text == "📦 کانفینگ‌های خریداری‌شده":
+    elif text == "🎁 کد هدیه":
 
         await update.message.reply_text(
-            "هنوز سفارشی ثبت نشده."
+            "🎁 کد هدیه را ارسال کنید."
         )
 
 
 
-    elif text == "🔙 برگشت":
-
-        if user_id == ADMIN_ID:
-
-            await update.message.reply_text(
-                "👑 پنل مدیریت",
-                reply_markup=ReplyKeyboardMarkup(
-                    admin_menu,
-                    resize_keyboard=True
-                )
-            )
-
-        else:
-
-            await update.message.reply_text(
-                "منوی اصلی",
-                reply_markup=ReplyKeyboardMarkup(
-                    menu,
-                    resize_keyboard=True
-                )
-)
-]
-    # پنل مدیریت
-
-    elif text == "🎁 ساخت کد هدیه" and user_id == ADMIN_ID:
-
-        context.user_data["create_gift"] = True
+    elif text == "👥 زیرمجموعه گیری":
 
         await update.message.reply_text(
-            "🎁 ساخت کد هدیه\n\n"
-            "فرمت ارسال:\n"
-            "نام_کد:تعداد_امتیاز\n\n"
-            "مثال:\n"
-            "HACK50:50"
-        )
-
-
-    elif context.user_data.get("create_gift") and user_id == ADMIN_ID:
-
-        try:
-
-            code, points = text.split(":")
-
-            create_gift(
-                code,
-                int(points)
-            )
-
-
-            context.user_data["create_gift"] = False
-
-
-            await update.message.reply_text(
-                "✅ کد هدیه ساخته شد."
-            )
-
-
-        except:
-
-            await update.message.reply_text(
-                "❌ فرمت اشتباه است.\nمثال:\nHACK50:50"
-            )
-
-
-
-    elif text == "📊 سفارش‌ها" and user_id == ADMIN_ID:
-
-        await update.message.reply_text(
-            "📊 بخش سفارش‌ها در حال آماده‌سازی است."
-        )
-
-
-
-    elif text == "👥 کاربران" and user_id == ADMIN_ID:
-
-        await update.message.reply_text(
-            "👥 بخش کاربران در حال آماده‌سازی است."
-        )
-    # وارد کردن کد هدیه
-
-    elif text == "🎁 وارد کردن کد هدیه":
-
-        context.user_data["use_gift"] = True
-
-        await update.message.reply_text(
-            "🎁 کد هدیه را ارسال کنید:"
-        )
-
-
-
-    elif context.user_data.get("use_gift"):
-
-        result = use_gift(
-            user_id,
-            text
-        )
-
-
-        context.user_data["use_gift"] = False
-
-
-        if result:
-
-            await update.message.reply_text(
-                "🎉 کد هدیه فعال شد!\n"
-                f"⭐ امتیاز شما: {get_points(user_id)}"
-            )
-
-        else:
-
-            await update.message.reply_text(
-                "❌ کد اشتباه است یا قبلاً استفاده شده."
-            )
-
-
-
-    elif text == "⭐ امتیازهای من":
-
-        await update.message.reply_text(
-            f"⭐ امتیاز شما: {get_points(user_id)}"
+            "لینک دعوت شما ساخته می‌شود."
         )
 
 
@@ -264,23 +199,12 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
-app = Application.builder().token(TOKEN).build()
+    elif text == "🔙 برگشت":
 
-
-app.add_handler(
-    CommandHandler(
-        "start",
-        start
-    )
-)
-
-
-app.add_handler(
-    MessageHandler(
-        filters.TEXT & ~filters.COMMAND,
-        message
-    )
-)
-
-
-app.run_polling()
+        await update.message.reply_text(
+            "منوی اصلی 👇",
+            reply_markup=ReplyKeyboardMarkup(
+                user_menu,
+                resize_keyboard=True
+            )
+        )
