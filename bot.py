@@ -59,7 +59,7 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"✅ انتخاب شما:\n\n"
             f"{configs[text]}\n\n"
-            "💳 لطفاً مبلغ را پرداخت کنید و عکس رسید را ارسال کنید."
+            "💳6104-3373-0010-1910 لطفاً مبلغ را پرداخت کنید و عکس رسید را ارسال کنید."
         )
 
 
