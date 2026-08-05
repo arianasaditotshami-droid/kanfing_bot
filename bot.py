@@ -31,18 +31,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = update.effective_user
 
-    add_user(user.id, user.username)
+    ref = 0
+
+    if context.args:
+        ref = int(context.args[0])
+
+    add_user(user.id, user.username, ref)
 
     await update.message.reply_text(
         "خوش آمدید 👋",
-        reply_markup=ReplyKeyboardMarkup(
-            menu,
-            resize_keyboard=True
-        )
+        reply_markup=ReplyKeyboardMarkup(menu, resize_keyboard=True)
     )
-
-
-async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
     user_id = update.effective_user.id
@@ -69,38 +69,31 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"✅ سفارش ثبت شد\n\n"
             f"{configs[text]}\n\n"
-            "💳 6104-3373-0010-1910پرداخت کنید و رسید را ارسال کنید.",
+            "💳  6104-3373-0010-1910پرداخت کنید و عکس رسید را ارسال کنید.",
             reply_markup=ReplyKeyboardMarkup(
                 [["🔙 برگشت"]],
                 resize_keyboard=True
             )
         )
+
 
     elif text == "💳 شارژ حساب":
 
         await update.message.reply_text(
-            "💳  6104-3373-0010-191شماره کارت برای پرداخت:\n\n"
+            "💳  6104-3373-0010-1910:\n\n"
             f"{CARD_NUMBER}\n\n"
-            " 6104-3373-0010-1910بعد از پرداخت رسید را ارسال کنید ✅",
+            "  6104-3373-0010-1910بعد از پرداخت عکس رسید را ارسال کنید.",
             reply_markup=ReplyKeyboardMarkup(
                 [["🔙 برگشت"]],
                 resize_keyboard=True
             )
-        )
-
-
-    elif text == "📦 کانفینگ‌های خریداری‌شده":
+    )
+            elif text == "📦 کانفینگ‌های خریداری‌شده":
 
         orders = get_user_orders(user_id)
 
         if not orders:
-            await update.message.reply_text(
-                "هنوز سفارشی ندارید.",
-                reply_markup=ReplyKeyboardMarkup(
-                    [["🔙 برگشت"]],
-                    resize_keyboard=True
-                )
-            )
+            await update.message.reply_text("هنوز سفارشی ندارید.")
 
         else:
             msg = "📦 سفارش‌های شما:\n\n"
@@ -108,13 +101,16 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for order in orders:
                 msg += f"🔹 {order[0]}\nوضعیت: {order[1]}\n\n"
 
-            await update.message.reply_text(
-                msg,
-                reply_markup=ReplyKeyboardMarkup(
-                    [["🔙 برگشت"]],
-                    resize_keyboard=True
-                )
-            )
+            await update.message.reply_text(msg)
+
+
+    elif text == "⭐ امتیازهای من":
+
+        points = get_points(user_id)
+
+        await update.message.reply_text(
+            f"⭐ امتیاز شما: {points}"
+        )
 
 
     elif text == "👥 زیرمجموعه‌گیری":
@@ -124,50 +120,14 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         link = f"https://t.me/{bot_username}?start={user_id}"
 
         await update.message.reply_text(
-            f"👥 لینک رفرال شما:\n\n{link}",
-            reply_markup=ReplyKeyboardMarkup(
-                [["🔙 برگشت"]],
-                resize_keyboard=True
-            )
-        )
-
-
-    elif text == "⭐ امتیازهای من":
-
-        await update.message.reply_text(
-            "⭐ امتیاز شما: 0",
-            reply_markup=ReplyKeyboardMarkup(
-                [["🔙 برگشت"]],
-                resize_keyboard=True
-            )
-                   )
-
-    elif text == "🎁 وارد کردن کد هدیه":
-
-        await update.message.reply_text(
-            "کد هدیه خود را ارسال کنید.",
-            reply_markup=ReplyKeyboardMarkup(
-                [["🔙 برگشت"]],
-                resize_keyboard=True
-            )
-        )
-
-
-    elif text == "🛟 پشتیبانی":
-
-        await update.message.reply_text(
-            "برای پشتیبانی پیام ارسال کنید.",
-            reply_markup=ReplyKeyboardMarkup(
-                [["🔙 برگشت"]],
-                resize_keyboard=True
-            )
+            f"👥 لینک شما:\n\n{link}"
         )
 
 
     elif text == "🔙 برگشت":
 
         await update.message.reply_text(
-            "به منوی اصلی برگشتید 👇",
+            "منوی اصلی 👇",
             reply_markup=ReplyKeyboardMarkup(
                 menu,
                 resize_keyboard=True
@@ -175,10 +135,24 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user_id = update.effective_user.id
+
+    file_id = update.message.photo[-1].file_id
+
+    save_receipt(user_id, file_id)
+
+    await update.message.reply_text(
+        "✅ رسید شما دریافت شد، در انتظار بررسی."
+    )
+
+
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
+app.add_handler(MessageHandler(filters.PHOTO, photo))
 
 
 if __name__ == "__main__":
