@@ -65,9 +65,9 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "✅ انتخاب شما:\n\n"
             + configs[text]
-            + "\n\n💳 بعد از پرداخل لطفا رسید را ارسال کنید:\n"
+            + "\n\n💳 بعد از پرداخت لطفا رسید را ارسال کنید:\n"
             + CARD_NUMBER
-            + "\n\nبعد از پرداخت عکس رسید را ارسال کنید.",
+            + "\n\nبعد از پرداخت لطفا منتظر تایید پشتیبانی باشید حداقل2ساعت حداکثر1روز.",
             reply_markup=ReplyKeyboardMarkup(
                 [["🔙 برگشت"]],
                 resize_keyboard=True
